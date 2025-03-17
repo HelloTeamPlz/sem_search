@@ -1,0 +1,111 @@
+QMainWindow {
+    background-color: #1E1E1E;
+    color: #ffffff;
+    font-size: 14px;
+}
+
+/* Labels */
+QLabel {
+    color: #ffffff;
+    font-size: 16px;
+}
+
+/* Input Fields */
+QLineEdit, QComboBox {
+    background-color: #333;
+    border: 1px solid #555;
+    border-radius: 8px;
+    padding: 6px;
+    color: #ffffff;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #0078D7;
+    border-radius: 8px;
+    padding: 8px;
+    font-weight: bold;
+    color: white;
+}
+QPushButton:hover {
+    background-color: #005A9E;
+}
+
+/* Table Styling */
+QTableWidget {
+    background-color: #252526;
+    gridline-color: #555;
+    border: 1px solid #333;
+    color: white;
+    selection-background-color: #0078D7;
+    selection-color: white;
+}
+
+/* Table Header */
+QHeaderView::section {
+    background-color: #0078D7;
+    color: white;
+    padding: 6px;
+    font-weight: bold;
+    border: none;
+}
+
+/* Menu Bar */
+QMenuBar {
+    background-color: #2C2C2C;
+    color: white;
+    font-size: 12px;
+    padding: 3px;
+    min-height: 20px;
+}
+
+/* ✅ Make Menu Items Smaller */
+QMenuBar::item {
+    background-color: transparent;
+    padding: 4px;
+    margin: 0px;
+}
+QMenuBar::item:selected {
+    background-color: #444;
+}
+
+/* Dropdown Menu */
+QMenu {
+    background-color: #2C2C2C;
+    color: white;
+    border: 1px solid #444;
+    font-size: 12px;
+    padding: 3px;
+}
+QMenu::item {
+    padding: 4px;
+}
+QMenu::item:selected {
+    background-color: #0078D7;
+}
+
+/* **Styling for Popups (`QMessageBox`)** */
+QMessageBox {
+    background-color: #252526;
+    color: white;
+    border: 1px solid #444;
+    font-size: 14px;
+}
+
+/* Style QMessageBox buttons */
+QMessageBox QPushButton {
+    background-color: #0078D7;
+    border-radius: 8px;
+    padding: 6px;
+    font-weight: bold;
+    color: white;
+}
+QMessageBox QPushButton:hover {
+    background-color: #005A9E;
+}
+
+/* QMessageBox Icons */
+QMessageBox QLabel {
+    color: white;
+    font-size: 14px;
+}
