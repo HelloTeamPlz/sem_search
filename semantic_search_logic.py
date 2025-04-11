@@ -42,7 +42,7 @@ class SemanticSearchLogic:
             return
 
         file_name = os.path.basename(file_path)
-        destination_path = os.path.abspath(os.path.join(self.ui.csv_directory, file_name))
+        destination_path = os.path.abspath(file_name)
 
         if os.path.normcase(os.path.abspath(file_path)) == os.path.normcase(destination_path):
             QMessageBox.warning(self.ui, "Duplicate File", "This file already exists.")
