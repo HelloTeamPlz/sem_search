@@ -3,7 +3,7 @@ from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtWidgets import (
     QMainWindow, QVBoxLayout, QLabel, QLineEdit,
     QPushButton, QTableWidget, QWidget, QHeaderView, QComboBox,
-    QMessageBox, QTableWidgetItem
+    QMessageBox, QTableWidgetItem, QProgressBar
 )
 from semantic_search_logic import SemanticSearchLogic
 
@@ -88,6 +88,13 @@ class SemanticSearchApp(QMainWindow):
 
         # call refresh_npz_dropdown after UI elements are set up
         self.refresh_npz_dropdown()
+
+        # progress bar
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+
 
     def refresh_npz_dropdown(self):
         """Refreshes the dropdown menu to list available NPZ files."""

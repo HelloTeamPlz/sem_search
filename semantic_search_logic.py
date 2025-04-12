@@ -1,8 +1,9 @@
-import os
-import shutil
 import numpy as np
 import pandas as pd
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton
+from PyQt6.QtCore import QThread, pyqtSignal, QObject
+
+
 from semantic_search import SemanticSearch
 
 class SemanticSearchLogic:
@@ -34,32 +35,59 @@ class SemanticSearchLogic:
             self.selected_npz_file = None
 
     def upload_file(self):
-        """Handles uploading CSV files into the application's directory."""
+        """
+        Uploads a CSV file, merges it with the currently selected NPZ file, and updates the NPZ 
+        with unique rows and regenerated embeddings in a background thread with progress bar.
+
+        Steps:
+        - Opens a file dialog for CSV selection
+        - Loads the selected CSV into a DataFrame
+        - Merges it with existing NPZ metadata
+        - Drops duplicates across all rows
+        - Starts a background thread to regenerate embeddings and update the NPZ
+        """
         file_dialog = QFileDialog(self.ui)
         file_path, _ = file_dialog.getOpenFileName(self.ui, "Select a CSV File", "", "CSV Files (*.csv)")
-
         if not file_path:
             return
 
-        file_name = os.path.basename(file_path)
-        destination_path = os.path.abspath(file_name)
-
-        if os.path.normcase(os.path.abspath(file_path)) == os.path.normcase(destination_path):
-            QMessageBox.warning(self.ui, "Duplicate File", "This file already exists.")
+        new_data = pd.read_csv(file_path, sep=None, engine="python", on_bad_lines="warn")
+        new_data.fillna("", inplace=True)
+        if new_data.empty:
+            QMessageBox.warning(self.ui, "Error", "The selected CSV is empty.")
             return
 
-        if os.path.exists(destination_path):
-            response = QMessageBox.question(
-                self.ui, "File Exists",
-                f"The file '{file_name}' already exists. Overwrite?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No
-            )
-            if response == QMessageBox.StandardButton.No:
-                return
+        if not self.selected_npz_file:
+            QMessageBox.warning(self.ui, "Error", "No NPZ file selected to append to.")
+            return
 
-        shutil.copy(file_path, destination_path)
-        QMessageBox.information(self.ui, "Upload Successful", f"'{file_name}' uploaded successfully.")
+        _, existing_metadata, _ = self.search_engine.load_embeddings(self.selected_npz_file)
+        combined = pd.concat([existing_metadata, new_data], ignore_index=True)
+        combined = combined.drop_duplicates()
+
+        if combined.equals(existing_metadata):
+            QMessageBox.information(self.ui, "No Changes", "No new rows to add. NPZ file is up to date.")
+            return
+
+        self.ui.progress_bar.setVisible(True)
+        self.ui.progress_bar.setValue(0)
+
+        self.worker = EmbeddingWorker(combined, self.selected_npz_file, self.search_engine)
+        self.thread = QThread()
+        self.worker.moveToThread(self.thread)
+
+        self.worker.progress.connect(self.ui.progress_bar.setValue)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(lambda: QMessageBox.information(self.ui, "Upload Successful", "CSV data merged and NPZ file updated."))
+        self.worker.finished.connect(lambda: self.ui.progress_bar.setVisible(False))
+        self.worker.finished.connect(self.ui.refresh_npz_dropdown)
+
+        self.worker.error.connect(lambda msg: QMessageBox.critical(self.ui, "Error", msg))
+        self.worker.error.connect(self.thread.quit)
+        self.worker.error.connect(lambda: self.ui.progress_bar.setVisible(False))
+
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
 
     def perform_search(self):
         """Executes semantic search based on selected column and query."""
@@ -147,3 +175,35 @@ class SaveNPZDialog(QDialog):
         QMessageBox.information(self, "Save Successful", f"Embeddings saved to '{npz_file_name}'.")
         self.logic.ui.refresh_npz_dropdown()
         self.close()
+
+class EmbeddingWorker(QObject):
+    progress = pyqtSignal(int)
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+
+    def __init__(self, data, npz_filename, search_engine):
+        super().__init__()
+        self.data = data
+        self.npz_filename = npz_filename
+        self.search_engine = search_engine
+
+    def run(self):
+        try:
+            metadata = self.data.copy()
+            embeddings_dict = {}
+            total = len(metadata.columns)
+
+            for idx, column in enumerate(metadata.columns):
+                sanitized_col = column.replace(" ", "_")
+                embeddings = self.search_engine.model.encode(
+                    metadata[column].astype(str).tolist(),
+                    convert_to_tensor=False
+                )
+                embeddings_dict[f"embeddings_{sanitized_col}"] = embeddings
+                self.progress.emit(int((idx + 1) / total * 100))
+
+            np.savez_compressed(self.npz_filename, metadata=metadata.to_dict(orient='records'), **embeddings_dict)
+            self.finished.emit()
+
+        except Exception as e:
+            self.error.emit(str(e))
